@@ -20,4 +20,6 @@ a private test directory, runs the procedures, and removes its test objects.
 Use `--list` to see all test cases, `--port PORT` to set the NFS port, and
 procedure names (for example `READ WRITE COMMIT`) to run each selected
 procedure together with its edge cases. A specific case can also be selected
-by name (for example `READ_MAX_COUNT`).
+by name (for example `READ_MAX_COUNT`). Edge cases include byte-exact,
+non-UTF-8 filenames and symbolic-link targets, as NFSv3 XDR strings are opaque
+byte strings and do not require UTF-8 encoding.

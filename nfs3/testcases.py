@@ -48,15 +48,19 @@ class NFS3Tests:
     ]
     edge_cases = [
         ("GETATTR_SYMLINK", "GETATTR", "edge_getattr_symlink"),
+        ("GETATTR_EMPTY_HANDLE", "GETATTR", "edge_getattr_empty_handle"),
         ("SETATTR_SIZE_ZERO", "SETATTR", "edge_setattr_size_zero"),
         ("SETATTR_GUARD", "SETATTR", "edge_setattr_guard"),
         ("LOOKUP_NOENT", "LOOKUP", "edge_lookup_noent"),
         ("LOOKUP_NAMETOOLONG", "LOOKUP", "edge_lookup_nametoolong"),
         ("LOOKUP_DOT_COMPONENTS", "LOOKUP", "edge_lookup_dot_components"),
+        ("LOOKUP_NON_UTF8_NAME", "LOOKUP", "edge_lookup_non_utf8_name"),
         ("ACCESS_MASK", "ACCESS", "edge_access_mask"),
         ("ACCESS_UNKNOWN_BITS", "ACCESS", "edge_access_unknown_bits"),
         ("READLINK_WRONG_TYPE", "READLINK", "edge_readlink_wrong_type"),
         ("READLINK_LONG_TARGET", "READLINK", "edge_readlink_long_target"),
+        ("READLINK_NON_UTF8_TARGET", "READLINK",
+         "edge_readlink_non_utf8_target"),
         ("READ_ZERO_COUNT", "READ", "edge_read_zero_count"),
         ("READ_BEYOND_EOF", "READ", "edge_read_beyond_eof"),
         ("READ_MAX_COUNT", "READ", "edge_read_max_count"),
@@ -64,6 +68,7 @@ class NFS3Tests:
         ("WRITE_ZERO_COUNT", "WRITE", "edge_write_zero_count"),
         ("WRITE_SPARSE_OFFSET", "WRITE", "edge_write_sparse_offset"),
         ("WRITE_OFFSET_OVERFLOW", "WRITE", "edge_write_offset_overflow"),
+        ("WRITE_BINARY_PAYLOAD", "WRITE", "edge_write_binary_payload"),
         ("CREATE_MODES", "CREATE", "edge_create_modes"),
         ("CREATE_EMPTY_NAME", "CREATE", "edge_create_empty_name"),
         ("MKDIR_EXIST", "MKDIR", "edge_mkdir_exist"),
@@ -368,6 +373,11 @@ class NFS3Tests:
         if attrs.type != NF3LNK or attrs.size != len(LINK_DATA):
             raise AssertionError("GETATTR returned unexpected symlink attributes")
 
+    def edge_getattr_empty_handle(self):
+        self._expect_status(
+            "GETATTR", GETATTR3args(nfs_fh3(b"")),
+            [NFS3ERR_BADHANDLE, NFS3ERR_STALE])
+
     def edge_setattr_size_zero(self):
         attrs = unset_attributes()
         attrs.size = set_size3(TRUE, 0)
@@ -411,6 +421,18 @@ class NFS3Tests:
         if parent.data == self.directory.data:
             raise AssertionError("LOOKUP(..) returned the child directory")
 
+    def edge_lookup_non_utf8_name(self):
+        name = b"raw-name-\xff-\xfe-\x80"
+        handle = self._create(name)
+        looked_up = self._lookup(self.directory, name)
+        if looked_up.data != handle.data:
+            raise AssertionError("LOOKUP changed a non-UTF-8 filename")
+        entries = self.call("READDIR", READDIR3args(
+            self.directory, 0, NULL_VERIFIER, 8192))
+        names = {entry.name for entry in self._entries(entries.reply.entries)}
+        if name not in names:
+            raise AssertionError("READDIR omitted a non-UTF-8 filename")
+
     def edge_access_mask(self):
         requested = (ACCESS3_READ | ACCESS3_LOOKUP | ACCESS3_MODIFY |
                      ACCESS3_EXTEND | ACCESS3_DELETE | ACCESS3_EXECUTE)
@@ -444,6 +466,18 @@ class NFS3Tests:
         if returned != target:
             raise AssertionError("READLINK corrupted a long target")
         del result
+
+    def edge_readlink_non_utf8_target(self):
+        name = self._name("rawlink")
+        target = b"relative-\xff-\xfe-\x80-target"
+        self.call("SYMLINK", SYMLINK3args(
+            diropargs3(self.directory, name),
+            symlinkdata3(unset_attributes(), target)))
+        self.created_names.append(name)
+        handle = self._lookup(self.directory, name)
+        returned = self.call("READLINK", READLINK3args(handle)).data
+        if returned != target:
+            raise AssertionError("READLINK changed a non-UTF-8 symlink target")
 
     def edge_read_zero_count(self):
         result = self.call("READ", READ3args(self.file, 0, 0))
@@ -502,6 +536,21 @@ class NFS3Tests:
             "WRITE",
             WRITE3args(self.file, 0xffffffffffffffff, 1, UNSTABLE, b"x"),
             [NFS3ERR_FBIG, NFS3ERR_INVAL, NFS3ERR_NOSPC])
+
+    def edge_write_binary_payload(self):
+        data = bytes(range(256)) + b"\x00\xff\xfe"
+        try:
+            result = self.call("WRITE", WRITE3args(
+                self.file, 0, len(data), FILE_SYNC, data))
+            if result.count != len(data):
+                raise AssertionError("WRITE returned an incorrect binary count")
+            returned = self.call(
+                "READ", READ3args(self.file, 0, len(data))).data
+            if returned != data:
+                raise AssertionError("READ changed opaque binary file data")
+        finally:
+            self.call("WRITE", WRITE3args(
+                self.file, 0, len(TEST_DATA), FILE_SYNC, TEST_DATA))
 
     def edge_create_modes(self):
         guarded_name = self._name("guarded")
