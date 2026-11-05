@@ -1,0 +1,26 @@
+NFSv3 server tests
+==================
+
+This directory contains direct NFSv3 RPC tests for the 22 procedures in
+RFC 1813, implemented using the NFSv3 XDR definitions in
+`nfs4.1/xdrdef/nfs3.x` and the existing NFSv3 RPC client.
+
+From this directory, generate the XDR modules and run the test suite with:
+
+    (cd .. && python3 setup.py build)
+    python3 testserver.py SERVER /export/path
+
+The top-level build must run from the repository root, because it locates
+the xdr, rpc, nfs4.1, and nfs4.0 directories relative to its working directory.
+The subshell above returns you to nfs3 after the build.
+
+The export must permit the selected AUTH_SYS credentials to create and remove
+files and directories. The runner mounts the export through MOUNTv3, creates
+a private test directory, runs the procedures and converted server cases, and
+removes its test objects. Use `--list` to see all test cases, `--port PORT` to
+set the NFS port, and procedure names (for example `READ WRITE COMMIT`) to run
+each selected procedure together with its edge and converted cases. A specific
+case can also be selected by name (for example `READ_MAX_COUNT` or
+`WRITE_AND_READ_BACK`).
+Edge cases include byte-exact, non-UTF-8 filenames and symbolic-link targets,
+as NFSv3 XDR strings are opaque byte strings and do not require UTF-8 encoding.

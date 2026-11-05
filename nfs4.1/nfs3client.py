@@ -110,19 +110,30 @@ class Mnt3Client(rpc.Client):
 
     def get_rootfh(self, export):
 
-        class dirpath(str):
+        class dirpath(bytes):
             pass
 
-        arg = dirpath('/' + os.path.join(*export))
+        arg = dirpath(b'/' + os.path.join(
+            *(os.fsencode(component) for component in export)))
         res = self.proc(MOUNTPROC3_MNT, arg, 'mountres3')
+        if res.fhs_status != MNT3_OK:
+            raise rpc.RPCError("MOUNT %r returned %s" %
+                               (arg, mountstat3.get(res.fhs_status,
+                                                  res.fhs_status)))
         return res.mountinfo.fhandle
 
 class NFS3Client(rpc.Client):
-    def __init__(self, host='localhost', port=None, ctrl_proc=16, summary=None, secureport=False):
+    def __init__(self, host='localhost', port=None, ctrl_proc=16, summary=None,
+                 secureport=False, mountport=None):
         rpc.Client.__init__(self, NFS_PROGRAM, NFS_V3, secureport=secureport)
-        self.portmap = PORTMAPClient(host=host)
-        self.mntport = self.portmap.get_port(MOUNT_PROGRAM, MOUNT_V3)
-        if not port:
+        self.portmap = None
+        if port is None or mountport is None:
+            self.portmap = PORTMAPClient(host=host)
+        if mountport is None:
+            self.mntport = self.portmap.get_port(MOUNT_PROGRAM, MOUNT_V3)
+        else:
+            self.mntport = mountport
+        if port is None:
             self.port = self.portmap.get_port(NFS_PROGRAM, NFS_V3)
         else:
             self.port = port
@@ -142,7 +153,7 @@ class NFS3Client(rpc.Client):
     def set_cred(self, credinfo):
         self.default_cred = credinfo
 
-    def null_async(self, data=""):
+    def null_async(self, data=b""):
         return self.send_call(self.get_pipe(), 0, data)
 
     def null(self, *args, **kwargs):
@@ -182,4 +193,3 @@ class NFS3Client(rpc.Client):
             res_unpacker = getattr(p, 'unpack_%s' % resname)
             data = res_unpacker()
         return data
-
