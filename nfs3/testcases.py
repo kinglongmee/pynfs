@@ -94,9 +94,10 @@ class NFS3Tests:
             uid=uid, gid=gid, name=os.fsencode(os.uname().nodename))
         self.client.set_cred(self.cred)
         self.client.mntclnt.default_cred = self.cred
-        self.root = self.client.mntclnt.get_rootfh([export.lstrip("/")])
-        if not isinstance(self.root, nfs_fh3) or not self.root.data:
+        root_handle = self.client.mntclnt.get_rootfh([export.lstrip("/")])
+        if not root_handle:
             raise RuntimeError("MOUNT did not return an NFSv3 file handle")
+        self.root = nfs_fh3(root_handle)
 
         suffix = os.urandom(4).hex()
         self.directory_name = ("pynfs3-%d-%s" %
@@ -575,9 +576,11 @@ class NFS3Tests:
         self._expect_status("REMOVE",
                             REMOVE3args(diropargs3(self.directory, missing)),
                             [NFS3ERR_NOENT])
+        name = self._name("remove-directory")
+        self._mkdir(self.directory, name)
+        self.created_names.append(name)
         self._expect_status("REMOVE",
-                            REMOVE3args(diropargs3(self.directory,
-                                                   self.directory_name)),
+                            REMOVE3args(diropargs3(self.directory, name)),
                             [NFS3ERR_ISDIR])
 
     def edge_rmdir_notempty(self):

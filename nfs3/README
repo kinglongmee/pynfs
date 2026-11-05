@@ -5,10 +5,14 @@ This directory contains direct NFSv3 RPC tests for the 22 procedures in
 RFC 1813, implemented using the NFSv3 XDR definitions in
 `nfs4.1/xdrdef/nfs3.x` and the existing NFSv3 RPC client.
 
-Generate the XDR modules and run the test suite with:
+From this directory, generate the XDR modules and run the test suite with:
 
-    ../setup.py build
-    ./testserver.py SERVER /export/path
+    (cd .. && python3 setup.py build)
+    python3 testserver.py SERVER /export/path
+
+The top-level build must run from the repository root, because it locates
+the xdr, rpc, nfs4.1, and nfs4.0 directories relative to its working directory.
+The subshell above returns you to nfs3 after the build.
 
 The export must permit the selected AUTH_SYS credentials to create and remove
 files and directories. The runner mounts the export through MOUNTv3, creates

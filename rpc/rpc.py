@@ -815,7 +815,7 @@ class ConnectionHandler(object):
         err = None
         for res in socket.getaddrinfo(host, port, 0, socket.SOCK_STREAM):
             af, socktype, proto, cannonname, sa = res
-            sock = None
+            s = None
             try:
                 s = socket.socket(af, socktype, proto)
                 s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -824,9 +824,14 @@ class ConnectionHandler(object):
                 s.connect(sa)
                 err = None
                 break
-            except:
+            except OSError as error:
+                err = error
                 if s is not None:
                     s.close()
+        else:
+            if err is not None:
+                raise err
+            raise OSError("No socket addresses found for %r" % (address,))
 
         s.setblocking(0)
         pipe = RpcPipe(s, self._alarm)
