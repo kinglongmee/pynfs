@@ -23,3 +23,26 @@ procedure together with its edge cases. A specific case can also be selected
 by name (for example `READ_MAX_COUNT`). Edge cases include byte-exact,
 non-UTF-8 filenames and symbolic-link targets, as NFSv3 XDR strings are opaque
 byte strings and do not require UTF-8 encoding.
+
+Linux nfsd argument validation
+-----------------------------
+
+The LINUX_* edge cases exercise request checks in fs/nfsd/nfs3xdr.c and
+fs/nfsd/nfs3proc.c and run with the other cases. Select one by name, for
+example `LINUX_WRITE_COUNT`. They are Linux implementation checks, not
+portable RFC requirements: rejected XDR arguments are expected to produce
+RPC GARBAGE_ARGS rather than an NFS status. Raw payloads bypass client-side
+XDR validation for oversized handles and invalid enum discriminants.
+
+Coverage: handle lengths and truncation; empty, oversized, NUL, and
+slash-containing names across all directory-argument procedures; WRITE
+count/data mismatches, invalid stability and truncated data; invalid CREATE
+modes and short exclusive verifiers; truncated symlink targets; and invalid
+versus valid-but-illegal MKNOD types (the latter return NFS3ERR_BADTYPE).
+
+Source reviewed: Linux revision f66469d9905b39d2c260a15d7d6db450f4db67c1,
+https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/fs/nfsd?id=f66469d9905b39d2c260a15d7d6db450f4db67c1
+
+Offline regression checks, run from the repository root:
+
+    python3 -m unittest nfs3.test_linux_arguments nfs3.test_client rpc.test_connection

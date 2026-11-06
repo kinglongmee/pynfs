@@ -1,10 +1,12 @@
 """NFSv3 procedure tests based on RFC 1813."""
 
 import os
+import struct
 
 import use_local
 import rpc.rpc as rpc
 from nfs3client import NFS3Client
+from xdrdef.nfs3_pack import NFS3Packer
 from xdrdef.nfs3_const import *
 from xdrdef.nfs3_type import *
 
@@ -89,6 +91,17 @@ class NFS3Tests:
         ("FSINFO_LIMITS", "FSINFO", "edge_fsinfo_limits"),
         ("PATHCONF_NAME_MAX", "PATHCONF", "edge_pathconf_name_max"),
         ("COMMIT_RANGE", "COMMIT", "edge_commit_range"),
+        ("LINUX_HANDLE_LENGTH", "GETATTR", "linux_handle_length"),
+        ("LINUX_HANDLE_TRUNCATED", "GETATTR", "linux_handle_truncated"),
+        ("LINUX_INVALID_NAMES", "LOOKUP", "linux_invalid_names"),
+        ("LINUX_WRITE_COUNT", "WRITE", "linux_write_count"),
+        ("LINUX_WRITE_STABILITY", "WRITE", "linux_write_stability"),
+        ("LINUX_WRITE_TRUNCATED", "WRITE", "linux_write_truncated"),
+        ("LINUX_CREATE_MODE", "CREATE", "linux_create_mode"),
+        ("LINUX_CREATE_VERIFIER", "CREATE", "linux_create_verifier"),
+        ("LINUX_SYMLINK_TRUNCATED", "SYMLINK", "linux_symlink_truncated"),
+        ("LINUX_MKNOD_TYPE", "MKNOD", "linux_mknod_type"),
+        ("LINUX_MKNOD_BADTYPE", "MKNOD", "linux_mknod_badtype"),
     ]
 
     def __init__(self, server, export, port=None, uid=None, gid=None):
@@ -757,6 +770,109 @@ class NFS3Tests:
         for offset, count in ((1, 1), (0, 0xffffffff),
                               (0xffffffffffffffff, 0)):
             self.call("COMMIT", COMMIT3args(self.file, offset, count))
+
+    @staticmethod
+    def _pack_args(args):
+        packer = NFS3Packer()
+        getattr(packer, "pack_" + args.__class__.__name__)(args)
+        return packer.get_buffer()
+
+    def _expect_garbage_args(self, procedure, payload):
+        pipe = self.client.get_pipe()
+        xid = self.client.send_call(
+            pipe, globals()["NFSPROC3_" + procedure], payload,
+            self.client.default_cred)
+        try:
+            pipe.listen(xid, timeout=10.0)
+        except rpc.RPCAcceptError as error:
+            if error.stat == rpc.GARBAGE_ARGS:
+                return
+            raise
+        raise AssertionError("%s accepted malformed arguments" % procedure)
+
+    def linux_handle_length(self):
+        for size in (0, NFS3_FHSIZE + 1):
+            packer = NFS3Packer()
+            packer.pack_opaque(b"x" * size)
+            self._expect_garbage_args("GETATTR", packer.get_buffer())
+
+    def linux_handle_truncated(self):
+        self._expect_garbage_args("GETATTR", struct.pack(">I", 8) + b"abcd")
+
+    def linux_invalid_names(self):
+        for name in (b"", b"x" * 256, b"nul\0name", b"slash/name"):
+            where = diropargs3(self.directory, name)
+            valid = diropargs3(self.directory, self._name("decode"))
+            cases = [
+                ("LOOKUP", LOOKUP3args(where)),
+                ("CREATE", CREATE3args(where, createhow3(
+                    GUARDED, obj_attributes=unset_attributes()))),
+                ("MKDIR", MKDIR3args(where, unset_attributes())),
+                ("SYMLINK", SYMLINK3args(
+                    where, symlinkdata3(unset_attributes(), LINK_DATA))),
+                ("MKNOD", MKNOD3args(where, mknoddata3(
+                    NF3FIFO, pipe_attributes=unset_attributes()))),
+                ("REMOVE", REMOVE3args(where)),
+                ("RMDIR", RMDIR3args(where)),
+                ("RENAME", RENAME3args(where, valid)),
+                ("RENAME", RENAME3args(valid, where)),
+                ("LINK", LINK3args(self.file, where)),
+            ]
+            for procedure, args in cases:
+                try:
+                    self._expect_garbage_args(procedure, self._pack_args(args))
+                except Exception as error:
+                    raise AssertionError("%s name %r: %s" %
+                                         (procedure, name, error)) from error
+
+    def linux_write_count(self):
+        for count, data in ((0, b"x"), (2, b"x"), (1, b""), (1, b"xy")):
+            args = WRITE3args(self.file, 0, count, FILE_SYNC, data)
+            self._expect_garbage_args("WRITE", self._pack_args(args))
+
+    def linux_write_stability(self):
+        prefix = self._pack_args(GETATTR3args(self.file))
+        for stable in (3, 0xffffffff):
+            payload = prefix + struct.pack(">QIII", 0, 0, stable, 0)
+            self._expect_garbage_args("WRITE", payload)
+
+    def linux_write_truncated(self):
+        payload = self._pack_args(WRITE3args(
+            self.file, 0, 8, FILE_SYNC, b"abcdefgh"))
+        self._expect_garbage_args("WRITE", payload[:-4])
+
+    def linux_create_mode(self):
+        prefix = self._pack_args(LOOKUP3args(diropargs3(
+            self.directory, self._name("badmode"))))
+        for mode in (3, 0xffffffff):
+            self._expect_garbage_args(
+                "CREATE", prefix + struct.pack(">I", mode))
+
+    def linux_create_verifier(self):
+        payload = self._pack_args(CREATE3args(
+            diropargs3(self.directory, self._name("shortverf")),
+            createhow3(EXCLUSIVE, verf=b"12345678")))
+        for length in (4, 8):
+            self._expect_garbage_args("CREATE", payload[:-length])
+
+    def linux_symlink_truncated(self):
+        payload = self._pack_args(SYMLINK3args(
+            diropargs3(self.directory, self._name("shortlink")),
+            symlinkdata3(unset_attributes(), b"abcdefgh")))
+        self._expect_garbage_args("SYMLINK", payload[:-4])
+
+    def linux_mknod_type(self):
+        prefix = self._pack_args(LOOKUP3args(diropargs3(
+            self.directory, self._name("badtype"))))
+        for kind in (0, 8, 0xffffffff):
+            self._expect_garbage_args(
+                "MKNOD", prefix + struct.pack(">I", kind))
+
+    def linux_mknod_badtype(self):
+        for kind in (NF3REG, NF3DIR, NF3LNK):
+            self._expect_status("MKNOD", MKNOD3args(
+                diropargs3(self.directory, self._name("illegaltype")),
+                mknoddata3(kind)), [NFS3ERR_BADTYPE])
 
     def run(self, selected=None):
         selected = set(selected or ())
