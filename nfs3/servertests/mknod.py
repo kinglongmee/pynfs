@@ -56,7 +56,6 @@ class MknodTests:
                 mknoddata3(kind)), [NFS3ERR_BADTYPE])
 
     def test_invalid_mknod_types_are_raw_arguments(self):
-        assertions = unittest.TestCase()
         from . import NFS3Tests
         tests = object.__new__(NFS3Tests)
         tests.directory = nfs_fh3(b"directory")
@@ -66,13 +65,12 @@ class MknodTests:
         tests._expect_garbage_args = Mock()
         tests.mknod_type()
         calls = tests._expect_garbage_args.call_args_list
-        assertions.assertEqual(len(calls), 3)
-        assertions.assertTrue(all(
+        assert len(calls) == 3
+        assert all(
             call[0][0] == "MKNOD" and isinstance(call[0][1], bytes)
-            for call in calls))
+            for call in calls)
 
     def test_mknod_dot_components_are_rejected(self):
-        assertions = unittest.TestCase()
         from . import NFS3Tests
         tests = object.__new__(NFS3Tests)
         tests.directory = nfs_fh3(b"directory")
@@ -84,14 +82,13 @@ class MknodTests:
         tests.call = Mock()
         tests.edge_mknod_dot_components()
         calls = tests._expect_status.call_args_list
-        assertions.assertEqual(len(calls), 2)
+        assert len(calls) == 2
         for call, component in zip(calls, (b".", b"..")):
             actual_procedure, args, actual_expected = call[0]
-            assertions.assertEqual(actual_procedure, "MKNOD")
+            assert actual_procedure == "MKNOD"
             unpacker = NFS3Unpacker(tests._pack_args(args))
             decoded = getattr(
                 unpacker, "unpack_" + args.__class__.__name__)()
-            assertions.assertEqual(decoded.where.name, component)
-            assertions.assertEqual(
-                actual_expected, [NFS3ERR_EXIST, NFS3ERR_INVAL])
-        assertions.assertEqual(tests._check_dot_namespace.call_count, 2)
+            assert decoded.where.name == component
+            assert actual_expected == [NFS3ERR_EXIST, NFS3ERR_INVAL]
+        assert tests._check_dot_namespace.call_count == 2

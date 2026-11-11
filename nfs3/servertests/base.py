@@ -2,7 +2,6 @@
 
 import os
 import struct
-import unittest
 from unittest.mock import Mock
 
 import use_local
@@ -194,7 +193,8 @@ class NFS3TestBase:
 
     def run(self, selected=None):
         selected = set(selected or ())
-        available = {name.lower() for name, _, _ in self.procedures}
+        available = {value.lower() for name, procedure, _ in self.procedures
+                     for value in (name, procedure)}
         unknown = selected - available
         if unknown:
             raise ValueError("Unknown NFSv3 procedure(s): %s" %

@@ -10,6 +10,20 @@ From this directory, generate the XDR modules and run the test suite with:
     (cd .. && python3 setup.py build)
     python3 testserver.py SERVER /export/path
 
+The six NFSv3 MOUNT procedures also have offline request/response tests in
+`servertests/mount.py`, implemented as the plain `Mounttests` mixin. Run all
+MOUNT tests with the `MOUNT` selector:
+
+    python3 testserver.py SERVER /export/path MOUNT
+
+Individual cases remain selectable by their MOUNT3_* names. The MOUNT
+selection includes MOUNT3_NULL, MOUNT3_MNT, MOUNT3_DUMP, MOUNT3_UMNT,
+MOUNT3_UMNTALL, and MOUNT3_EXPORT and their edge cases: empty, root,
+non-UTF-8, and maximum-length paths, oversized-path rejection, mount error
+statuses, maximum-size handles, authentication flavors, truncated replies,
+and mount/unmount timeouts. These tests use simulated replies, not a live
+MOUNT server.
+
 The top-level build must run from the repository root, because it locates
 the xdr, rpc, nfs4.1, and nfs4.0 directories relative to its working directory.
 The subshell above returns you to nfs3 after the build.

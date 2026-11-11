@@ -33,7 +33,6 @@ class SymlinkTests:
         self._expect_garbage_args("SYMLINK", payload[:-4])
 
     def test_truncated_symlink_target_is_raw_argument(self):
-        assertions = unittest.TestCase()
         from . import NFS3Tests
         tests = object.__new__(NFS3Tests)
         tests.directory = nfs_fh3(b"directory")
@@ -42,13 +41,13 @@ class SymlinkTests:
         tests.client = Mock()
         tests._expect_garbage_args = Mock()
         tests.symlink_truncated()
-        tests._expect_garbage_args.assert_called_once()
+        if tests._expect_garbage_args.call_count != 1:
+            raise AssertionError("expected one malformed SYMLINK request")
         procedure, payload = tests._expect_garbage_args.call_args[0]
-        assertions.assertEqual(procedure, "SYMLINK")
-        assertions.assertIsInstance(payload, bytes)
+        assert procedure == "SYMLINK"
+        assert isinstance(payload, bytes)
 
     def test_symlink_dot_components_are_rejected(self):
-        assertions = unittest.TestCase()
         from . import NFS3Tests
         tests = object.__new__(NFS3Tests)
         tests.directory = nfs_fh3(b"directory")
@@ -60,14 +59,13 @@ class SymlinkTests:
         tests.call = Mock()
         tests.edge_symlink_dot_components()
         calls = tests._expect_status.call_args_list
-        assertions.assertEqual(len(calls), 2)
+        assert len(calls) == 2
         for call, component in zip(calls, (b".", b"..")):
             actual_procedure, args, actual_expected = call[0]
-            assertions.assertEqual(actual_procedure, "SYMLINK")
+            assert actual_procedure == "SYMLINK"
             unpacker = NFS3Unpacker(tests._pack_args(args))
             decoded = getattr(
                 unpacker, "unpack_" + args.__class__.__name__)()
-            assertions.assertEqual(decoded.where.name, component)
-            assertions.assertEqual(
-                actual_expected, [NFS3ERR_EXIST, NFS3ERR_INVAL])
-        assertions.assertEqual(tests._check_dot_namespace.call_count, 2)
+            assert decoded.where.name == component
+            assert actual_expected == [NFS3ERR_EXIST, NFS3ERR_INVAL]
+        assert tests._check_dot_namespace.call_count == 2

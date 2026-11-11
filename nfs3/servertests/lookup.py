@@ -135,7 +135,6 @@ class LookupTests:
             [NFS3ERR_NOTDIR])
 
     def test_invalid_name_matrix_and_both_rename_operands(self):
-        assertions = unittest.TestCase()
         from . import NFS3Tests
         tests = object.__new__(NFS3Tests)
         tests.directory = nfs_fh3(b"directory")
@@ -145,43 +144,38 @@ class LookupTests:
         tests._expect_garbage_args = Mock()
         tests.invalid_names()
         calls = tests._expect_garbage_args.call_args_list
-        assertions.assertEqual(len(calls), 40)
+        assert len(calls) == 40
         rename_names = []
         for call in calls:
             procedure, payload = call[0]
-            assertions.assertIsInstance(payload, bytes)
+            assert isinstance(payload, bytes)
             if procedure == "RENAME":
                 unpacker = NFS3Unpacker(payload)
                 args = unpacker.unpack_RENAME3args()
                 unpacker.done()
                 rename_names.append((args.fromfile.name, args.tofile.name))
         invalid = (b"", b"x" * 256, b"nul\0name", b"slash/name")
-        assertions.assertEqual([pair[0] for pair in rename_names[::2]],
-                               list(invalid))
-        assertions.assertEqual([pair[1] for pair in rename_names[1::2]],
-                               list(invalid))
+        assert [pair[0] for pair in rename_names[::2]] == list(invalid)
+        assert [pair[1] for pair in rename_names[1::2]] == list(invalid)
 
     def test_dot_and_special_filename_bytes_roundtrip(self):
-        assertions = unittest.TestCase()
         from . import NFS3Tests
         names = (
             b".", b"..", b"...", b"..hidden", b".leading", b"trailing.",
             b"name with spaces", b"semi;colon,comma",
             b"brackets[]{}()!$&'()+,;=@^_`~%", b"control-\x01", b"raw-\xff",
         )
-        assertions.assertIn(
-            ("LOOKUP_SPECIAL_NAMES", "LOOKUP", "edge_lookup_special_names"),
-            NFS3Tests.procedures)
+        assert ("LOOKUP_SPECIAL_NAMES", "LOOKUP",
+                "edge_lookup_special_names") in NFS3Tests.procedures
         for name in names:
             packer = NFS3Packer()
             packer.pack_LOOKUP3args(LOOKUP3args(
                 diropargs3(nfs_fh3(b"directory"), name)))
             args = NFS3Unpacker(
                 packer.get_buffer()).unpack_LOOKUP3args()
-            assertions.assertEqual(args.what.name, name)
+            assert args.what.name == name
 
     def test_dot_lookup_checks_both_components(self):
-        assertions = unittest.TestCase()
         from . import NFS3Tests
         tests = object.__new__(NFS3Tests)
         tests.directory = nfs_fh3(b"directory")
@@ -192,10 +186,9 @@ class LookupTests:
         tests.directory = nfs_fh3(b"directory")
         tests._lookup = Mock(side_effect=[tests.directory, tests.root])
         tests.edge_lookup_dot_components()
-        assertions.assertEqual(tests._lookup.call_count, 2)
+        assert tests._lookup.call_count == 2
 
     def test_namespace_guard_detects_changed_directory_and_file(self):
-        assertions = unittest.TestCase()
         from . import NFS3Tests
         tests = object.__new__(NFS3Tests)
         tests.directory = nfs_fh3(b"directory")
@@ -209,5 +202,11 @@ class LookupTests:
         for handles in ((b"changed",), (b"directory", b"changed")):
             tests._lookup = Mock(
                 side_effect=[nfs_fh3(handle) for handle in handles])
-            with assertions.assertRaisesRegex(AssertionError, "changed"):
+            try:
                 tests._check_dot_namespace()
+            except AssertionError as error:
+                if "changed" not in str(error):
+                    raise
+            else:
+                raise AssertionError(
+                    "namespace guard did not detect a changed handle")

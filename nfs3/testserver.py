@@ -40,7 +40,8 @@ def main():
     if not args.server or not args.export:
         parser.error("server and export are required unless --list is used")
     selected = {name.lower() for name in args.procedures}
-    available = {name.lower() for name, _, _ in NFS3Tests.procedures}
+    available = {value.lower() for name, procedure, _ in NFS3Tests.procedures
+                 for value in (name, procedure)}
     unknown = selected - available
     if unknown:
         parser.error("unknown procedure(s): %s" % ", ".join(sorted(unknown)))

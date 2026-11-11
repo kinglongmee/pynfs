@@ -122,7 +122,6 @@ class WriteTests:
             self._unlink(name)
 
     def test_write_count_mismatches_survive_encoding(self):
-        assertions = unittest.TestCase()
         from . import NFS3Tests
         tests = object.__new__(NFS3Tests)
         tests.directory = nfs_fh3(b"directory")
@@ -132,15 +131,14 @@ class WriteTests:
         tests._expect_garbage_args = Mock()
         tests.write_count()
         calls = tests._expect_garbage_args.call_args_list
-        assertions.assertEqual(len(calls), 4)
+        assert len(calls) == 4
         for call in calls:
             procedure, payload = call[0]
-            assertions.assertEqual(procedure, "WRITE")
+            assert procedure == "WRITE"
             args = NFS3Unpacker(payload).unpack_WRITE3args()
-            assertions.assertNotEqual(args.count, len(args.data))
+            assert args.count != len(args.data)
 
     def test_invalid_write_stability_payloads(self):
-        assertions = unittest.TestCase()
         from . import NFS3Tests
         tests = object.__new__(NFS3Tests)
         tests.directory = nfs_fh3(b"directory")
@@ -150,13 +148,12 @@ class WriteTests:
         tests._expect_garbage_args = Mock()
         tests.write_stability()
         calls = tests._expect_garbage_args.call_args_list
-        assertions.assertEqual(len(calls), 2)
+        assert len(calls) == 2
         for call in calls:
-            assertions.assertEqual(call[0][0], "WRITE")
-            assertions.assertIsInstance(call[0][1], bytes)
+            assert call[0][0] == "WRITE"
+            assert isinstance(call[0][1], bytes)
 
     def test_truncated_write_payload(self):
-        assertions = unittest.TestCase()
         from . import NFS3Tests
         tests = object.__new__(NFS3Tests)
         tests.directory = nfs_fh3(b"directory")
@@ -166,5 +163,4 @@ class WriteTests:
         tests._expect_garbage_args = Mock()
         tests.write_truncated()
         tests._expect_garbage_args.assert_called_once()
-        assertions.assertEqual(
-            tests._expect_garbage_args.call_args[0][0], "WRITE")
+        assert tests._expect_garbage_args.call_args[0][0] == "WRITE"

@@ -154,7 +154,6 @@ class CreateTests:
             self._unlink(name)
 
     def test_invalid_create_modes_are_raw_arguments(self):
-        assertions = unittest.TestCase()
         from . import NFS3Tests
         tests = object.__new__(NFS3Tests)
         tests.directory = nfs_fh3(b"directory")
@@ -164,13 +163,12 @@ class CreateTests:
         tests._expect_garbage_args = Mock()
         tests.create_mode()
         calls = tests._expect_garbage_args.call_args_list
-        assertions.assertEqual(len(calls), 2)
-        assertions.assertTrue(all(
+        assert len(calls) == 2
+        assert all(
             call[0][0] == "CREATE" and isinstance(call[0][1], bytes)
-            for call in calls))
+            for call in calls)
 
     def test_short_create_verifiers_are_raw_arguments(self):
-        assertions = unittest.TestCase()
         from . import NFS3Tests
         tests = object.__new__(NFS3Tests)
         tests.directory = nfs_fh3(b"directory")
@@ -180,13 +178,12 @@ class CreateTests:
         tests._expect_garbage_args = Mock()
         tests.create_verifier()
         calls = tests._expect_garbage_args.call_args_list
-        assertions.assertEqual(len(calls), 2)
-        assertions.assertTrue(all(
+        assert len(calls) == 2
+        assert all(
             call[0][0] == "CREATE" and isinstance(call[0][1], bytes)
-            for call in calls))
+            for call in calls)
 
     def test_create_dot_cases_cover_all_modes(self):
-        assertions = unittest.TestCase()
         from . import NFS3Tests
         tests = object.__new__(NFS3Tests)
         tests.directory = nfs_fh3(b"directory")
@@ -197,8 +194,8 @@ class CreateTests:
         tests._check_dot_namespace = Mock()
         tests.edge_create_dot_components()
         calls = tests._expect_status.call_args_list
-        assertions.assertEqual(len(calls), 6)
-        assertions.assertEqual(
-            [(call[0][1].where.name, call[0][1].how.mode) for call in calls],
+        assert len(calls) == 6
+        assert (
+            [(call[0][1].where.name, call[0][1].how.mode) for call in calls] ==
             [(component, mode) for mode in (UNCHECKED, GUARDED, EXCLUSIVE)
              for component in (b".", b"..")])

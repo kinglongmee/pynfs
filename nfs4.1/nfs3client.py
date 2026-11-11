@@ -88,8 +88,9 @@ class Mnt3Client(rpc.Client):
         if pipe is None:
             pipe = self.get_pipe()
         p = packer(check_enum=checks, check_array=checks)
-        arg_packer = getattr(p, 'pack_%s' % procarg.__class__.__name__)
-        arg_packer(procarg)
+        if procarg is not None:
+            arg_packer = getattr(p, 'pack_%s' % procarg.__class__.__name__)
+            arg_packer(procarg)
         return self.send_call(pipe, procnum, p.get_buffer(), credinfo)
 
     def proc(self, procnum, procarg, restypename, **kwargs):

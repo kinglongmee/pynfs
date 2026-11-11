@@ -84,7 +84,6 @@ class RenameTests:
             [NFS3ERR_NOENT])
 
     def test_dot_cases_cover_both_operands(self):
-        assertions = unittest.TestCase()
         from . import NFS3Tests
         tests = object.__new__(NFS3Tests)
         tests.directory = nfs_fh3(b"directory")
@@ -100,20 +99,18 @@ class RenameTests:
         pairs = [(call[0][1].fromfile.name, call[0][1].tofile.name)
                  for call in calls]
         ordinary = tests._create.call_args[0][0]
-        assertions.assertEqual(set(pairs), {
+        assert set(pairs) == {
             (b".", ordinary), (ordinary, b"."),
             (b"..", ordinary), (ordinary, b".."),
             (b".", b"."), (b".", b".."),
             (b"..", b"."), (b"..", b".."),
-        })
-        assertions.assertEqual(len(calls), 8)
+        }
+        assert len(calls) == 8
         for call in calls:
-            assertions.assertEqual(
-                call[0][2], [NFS3ERR_PERM, NFS3ERR_INVAL])
-        assertions.assertEqual(tests._check_dot_namespace.call_count, 8)
+            assert call[0][2] == [NFS3ERR_PERM, NFS3ERR_INVAL]
+        assert tests._check_dot_namespace.call_count == 8
 
     def test_rename_detects_changed_source(self):
-        assertions = unittest.TestCase()
         from . import NFS3Tests
         tests = object.__new__(NFS3Tests)
         tests.directory = nfs_fh3(b"directory")
@@ -124,5 +121,10 @@ class RenameTests:
         tests._check_dot_namespace = Mock()
         tests._create = Mock(return_value=nfs_fh3(b"source"))
         tests._lookup = Mock(return_value=nfs_fh3(b"changed"))
-        with assertions.assertRaisesRegex(AssertionError, "changed its source"):
+        try:
             tests.edge_rename_dot_components()
+        except AssertionError as error:
+            if "changed its source" not in str(error):
+                raise
+        else:
+            raise AssertionError("changed rename source was not detected")

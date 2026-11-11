@@ -63,7 +63,6 @@ class RemoveTests:
                 self.created_names.remove(name)
 
     def test_remove_dot_components_are_rejected(self):
-        assertions = unittest.TestCase()
         from . import NFS3Tests
         tests = object.__new__(NFS3Tests)
         tests.directory = nfs_fh3(b"directory")
@@ -75,14 +74,13 @@ class RemoveTests:
         tests.call = Mock()
         tests.edge_remove_dot_components()
         calls = tests._expect_status.call_args_list
-        assertions.assertEqual(len(calls), 2)
+        assert len(calls) == 2
         for call, component in zip(calls, (b".", b"..")):
             actual_procedure, args, actual_expected = call[0]
-            assertions.assertEqual(actual_procedure, "REMOVE")
+            assert actual_procedure == "REMOVE"
             unpacker = NFS3Unpacker(tests._pack_args(args))
             decoded = getattr(
                 unpacker, "unpack_" + args.__class__.__name__)()
-            assertions.assertEqual(decoded.object.name, component)
-            assertions.assertEqual(
-                actual_expected, [NFS3ERR_ACCES, NFS3ERR_INVAL])
-        assertions.assertEqual(tests._check_dot_namespace.call_count, 2)
+            assert decoded.object.name == component
+            assert actual_expected == [NFS3ERR_ACCES, NFS3ERR_INVAL]
+        assert tests._check_dot_namespace.call_count == 2

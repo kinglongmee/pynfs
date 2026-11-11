@@ -1,4 +1,6 @@
 from .base import *
+from xdrdef.nfs3_pack import NFS3Packer, NFS3Unpacker
+from xdrdef.nfs3_type import FSINFO3args, nfs_fh3
 
 
 class FsinfoTests:
@@ -21,3 +23,12 @@ class FsinfoTests:
         if result.properties & ~(FSF3_LINK | FSF3_SYMLINK |
                                  FSF3_HOMOGENEOUS | FSF3_CANSETTIME):
             raise AssertionError("FSINFO returned undefined property bits")
+
+    def test_fsinfo_argument_roundtrip(self):
+        packer = NFS3Packer()
+        packer.pack_FSINFO3args(FSINFO3args(nfs_fh3(b"test-handle")))
+        unpacker = NFS3Unpacker(packer.get_buffer())
+        args = unpacker.unpack_FSINFO3args()
+        unpacker.done()
+        if args.fsroot.data != b"test-handle":
+            raise AssertionError("FSINFO XDR argument did not round-trip")

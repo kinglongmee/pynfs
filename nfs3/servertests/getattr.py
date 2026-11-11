@@ -98,7 +98,6 @@ class GetattrTests:
                 "GETATTR returned type %s for directory" % attrs.type)
 
     def test_handle_lengths_and_truncation_bypass_client_packer(self):
-        assertions = unittest.TestCase()
         from . import NFS3Tests
         tests = object.__new__(NFS3Tests)
         tests.directory = nfs_fh3(b"directory")
@@ -109,15 +108,13 @@ class GetattrTests:
         tests.handle_length()
         payloads = [call[0][1] for call in
                     tests._expect_garbage_args.call_args_list]
-        assertions.assertEqual(
-            [struct.unpack(">I", p[:4])[0] for p in payloads], [0, 65])
+        assert [struct.unpack(">I", p[:4])[0] for p in payloads] == [0, 65]
         tests._expect_garbage_args.reset_mock()
         tests.handle_truncated()
         payload = tests._expect_garbage_args.call_args[0][1]
-        assertions.assertEqual(payload, struct.pack(">I", 8) + b"abcd")
+        assert payload == struct.pack(">I", 8) + b"abcd"
 
     def test_only_garbage_args_rpc_error_is_accepted(self):
-        assertions = unittest.TestCase()
         from . import NFS3Tests
         tests = object.__new__(NFS3Tests)
         tests.directory = nfs_fh3(b"directory")
@@ -130,11 +127,14 @@ class GetattrTests:
         pipe.listen.side_effect = error
         tests._expect_garbage_args("GETATTR", b"")
         error.stat = rpc.SYSTEM_ERR
-        with assertions.assertRaises(rpc.RPCAcceptError):
+        try:
             tests._expect_garbage_args("GETATTR", b"")
+        except rpc.RPCAcceptError:
+            pass
+        else:
+            raise AssertionError("non-GARBAGE_ARGS reply was accepted")
 
     def test_success_and_timeouts_do_not_pass(self):
-        assertions = unittest.TestCase()
         from . import NFS3Tests
         tests = object.__new__(NFS3Tests)
         tests.directory = nfs_fh3(b"directory")
@@ -142,9 +142,17 @@ class GetattrTests:
         tests._serial = 0
         tests.client = Mock()
         pipe = tests.client.get_pipe.return_value
-        with assertions.assertRaisesRegex(
-                AssertionError, "accepted malformed"):
+        try:
             tests._expect_garbage_args("GETATTR", b"")
+        except AssertionError as error:
+            if "accepted malformed" not in str(error):
+                raise
+        else:
+            raise AssertionError("malformed arguments were accepted")
         pipe.listen.side_effect = rpc.RPCTimeout()
-        with assertions.assertRaises(rpc.RPCTimeout):
+        try:
             tests._expect_garbage_args("GETATTR", b"")
+        except rpc.RPCTimeout:
+            pass
+        else:
+            raise AssertionError("RPC timeout was not propagated")
