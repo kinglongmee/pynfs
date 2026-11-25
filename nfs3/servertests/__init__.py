@@ -11,7 +11,9 @@ from .create import CreateTests
 from .fsinfo import FsinfoTests
 from .fsstat import FsstatTests
 from .getattr import GetattrTests
+from .getxattr import GetxattrTests
 from .link import LinkTests
+from .listxattr import ListxattrTests
 from .lookup import LookupTests
 from .mkdir import MkdirTests
 from .mknod import MknodTests
@@ -23,9 +25,11 @@ from .readdir import ReaddirTests
 from .readdirplus import ReaddirplusTests
 from .readlink import ReadlinkTests
 from .remove import RemoveTests
+from .removexattr import RemovexattrTests
 from .rename import RenameTests
 from .rmdir import RmdirTests
 from .setattr import SetattrTests
+from .setxattr import SetxattrTests
 from .symlink import SymlinkTests
 from .write import WriteTests
 from .base import NFS3TestBase, rpc
@@ -39,7 +43,9 @@ class NFS3Tests(
     FsinfoTests,
     FsstatTests,
     GetattrTests,
+    GetxattrTests,
     LinkTests,
+    ListxattrTests,
     LookupTests,
     MkdirTests,
     MknodTests,
@@ -51,9 +57,11 @@ class NFS3Tests(
     ReaddirplusTests,
     ReadlinkTests,
     RemoveTests,
+    RemovexattrTests,
     RenameTests,
     RmdirTests,
     SetattrTests,
+    SetxattrTests,
     SymlinkTests,
     WriteTests
 ):
@@ -88,6 +96,8 @@ class NFS3Tests(
         ("FSSTAT", "FSSTAT", "test_fsstat"),
         ("FSSTAT_COUNTS", "FSSTAT", "edge_fsstat_counts"),
         ("GETATTR", "GETATTR", "test_getattr"),
+        ("GETXATTR", "XATTR", "test_getxattr"),
+        ("XATTR_WIRE", "XATTR", "test_xattr_wire"),
         ("GETATTR_DIRECTORY_ATTRIBUTES", "GETATTR",
          "getattr_directory_attributes"),
         ("GETATTR_GARBAGE_ARGS_ERRORS", "GETATTR",
@@ -107,6 +117,7 @@ class NFS3Tests(
         ("HANDLE_TRUNCATED", "GETATTR", "handle_truncated"),
         ("INVALID_NAMES", "LOOKUP", "invalid_names"),
         ("LINK", "LINK", "test_link"),
+        ("LISTXATTR", "XATTR", "test_listxattr"),
         ("LINK_DIRECTORY", "LINK", "edge_link_directory"),
         ("LINK_DOT_COMPONENTS", "LINK", "edge_link_dot_components"),
         ("LINK_DOT_COMPONENTS_ARGUMENTS", "LINK",
@@ -206,6 +217,7 @@ class NFS3Tests(
         ("READ_PAST_END_OF_FILE", "READ", "read_past_end_of_file"),
         ("READ_ZERO_COUNT", "READ", "edge_read_zero_count"),
         ("REMOVE", "REMOVE", "test_remove"),
+        ("REMOVEXATTR", "XATTR", "test_removexattr"),
         ("REMOVE_DOT_COMPONENTS_ARGUMENTS", "REMOVE",
          "test_remove_dot_components_are_rejected"),
         ("REMOVE_DOT_COMPONENTS", "REMOVE", "edge_remove_dot_components"),
@@ -230,6 +242,8 @@ class NFS3Tests(
         ("RMDIR_EMPTY_DIRECTORY", "RMDIR", "rmdir_empty_directory"),
         ("RMDIR_NOTEMPTY", "RMDIR", "edge_rmdir_notempty"),
         ("SETATTR", "SETATTR", "test_setattr"),
+        ("SETXATTR", "XATTR", "test_setxattr"),
+        ("SETXATTR_INVALID_OPTION", "XATTR", "test_setxattr_invalid_option"),
         ("SETATTR_FILE_MODE", "SETATTR", "setattr_file_mode"),
         ("SETATTR_FILE_SIZE", "SETATTR", "setattr_file_size"),
         ("SETATTR_GUARD", "SETATTR", "edge_setattr_guard"),

@@ -38,3 +38,10 @@ case can also be selected by name (for example `READ_MAX_COUNT` or
 `WRITE_AND_READ_BACK`).
 Edge cases include byte-exact, non-UTF-8 filenames and symbolic-link targets,
 as NFSv3 XDR strings are opaque byte strings and do not require UTF-8 encoding.
+
+OpenFS's NFSv3 extended-attribute extension is tested separately and is not
+included in the default RFC 1813 run. Select `GETXATTR SETXATTR LISTXATTR
+REMOVEXATTR` to exercise it on an export that supports user xattrs. The tests
+cover missing attributes, create/replace semantics, binary values, listing
+with continuation cookies, and removal. `XATTR_WIRE` checks the extension's
+request and response encoding with simulated RPC replies.
